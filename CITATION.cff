@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use the Black Hole Index, please cite it as below."
+type: software
+title: "Black Hole Index"
+version: "3.1"
+date-released: "2026-01-15"
+url: "https://blackholeindex.com"
+repository-code: "https://github.com/Joingithubstyle/blackholeindex"
+license: CC-BY-4.0
+authors:
+  - family-names: "Savich"
+    given-names: "Ivan"
+    orcid: "https://orcid.org/0009-0003-9542-7022"
+    email: "ivan.savich@blackholeindex.com"
+keywords:
+  - platform economics
+  - structural lock-in
+  - switching costs
+  - network effects
+  - measurement instrument
+  - digital platforms
+identifiers:
+  - type: other
+    value: "SSRN:6555158"
+    description: "SSRN Abstract ID"

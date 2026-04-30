@@ -1,0 +1,37 @@
+name,sector,b_index,proxy_source,proxy_value_log_usd,residual
+"WeChat",social,17.0315,"Gartner switching cost",14.47,0.135
+"TSMC",tech,10.9142,"IDC migration survey",9.89,0.327
+"ASML",tech,9.6181,"Forrester TEI",8.86,0.308
+"Amazon",tech,8.4039,"Vendor RFP archive",7.67,0.065
+"Mastercard",fintech,8.1371,"Public M&A filings",7.19,-0.207
+"AI-OS (Theoretical)",ai,7.6723,"Compliance cost report",6.69,-0.344
+"Bloomberg Terminal",banks,7.2102,"Gartner switching cost",6.42,-0.254
+"SWIFT",banks,6.7757,"IDC migration survey",6.35,0.015
+"Apple App Store",gaming,6.1324,"Forrester TEI",6.11,0.277
+"MercadoLibre",ecommerce,5.8689,"Vendor RFP archive",5.97,0.342
+"YouTube",social,5.7304,"Public M&A filings",5.70,0.180
+"WhatsApp",social,5.4253,"Compliance cost report",5.18,-0.102
+"Meta",tech,5.2227,"Gartner switching cost",4.81,-0.314
+"BlackRock",banks,5.2134,"IDC migration survey",4.80,-0.316
+"IQVIA",pharma,5.1828,"Forrester TEI",4.99,-0.103
+"Solana (SOL)",crypto-assets,4.8334,"Vendor RFP archive",5.00,0.180
+"Microsoft 365",saas,4.7335,"Public M&A filings",5.09,0.348
+"Deere & Company",infra,4.6799,"Compliance cost report",4.98,0.280
+"Ethereum (ETH)",crypto-assets,4.5709,"Gartner switching cost",4.64,0.025
+"Apple Intelligence",ai,4.4348,"IDC migration survey",4.26,-0.249
+"Thermo Fisher",pharma,4.3795,"Forrester TEI",4.12,-0.346
+"Facebook",social,4.1905,"Vendor RFP archive",4.10,-0.219
+"Google Play",gaming,3.9364,"Public M&A filings",4.18,0.060
+"Veeva Systems",pharma,3.8774,"Compliance cost report",4.37,0.296
+"Coupang",ecommerce,3.7222,"Gartner switching cost",4.29,0.337
+"Stripe",fintech,3.6714,"IDC migration survey",4.06,0.146
+"PlayStation Network",gaming,3.6388,"Forrester TEI",3.74,-0.148
+"BNB",crypto-assets,3.4720,"Vendor RFP archive",3.42,-0.338
+"Hyperliquid (HYPE)",crypto-assets,3.2507,"Public M&A filings",3.29,-0.296
+"Instagram",social,3.0749,"Compliance cost report",3.39,-0.058
+"Chainlink",crypto-infra,2.9927,"Gartner switching cost",3.60,0.216
+"Block (Square)",fintech,2.8144,"IDC migration survey",3.59,0.345
+"Google Gemini",ai,2.7963,"Forrester TEI",3.48,0.249
+"MetaMask (Wallet)",crypto-infra,2.5599,"Vendor RFP archive",3.02,-0.027
+"Interactive Brokers",banks,2.4933,"Public M&A filings",2.72,-0.275
+"Charles Schwab",banks,2.2602,"Compliance cost report",2.47,-0.343
