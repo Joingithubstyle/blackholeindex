@@ -25,22 +25,22 @@ The instrument scores each platform on **eleven independently-anchored parameter
 
 Scores are aggregated via a CES (Constant Elasticity of Substitution) function with a Milgrom-Roberts complementarity correction into a single ratio: **B = Capture / Escape**.
 
-## Current Release: Q1 2026
+## Current Release: Q3 2026
 
-- **Universe:** 112 platforms across 12 sectors
+- **Universe:** 184 platforms across 18 sectors
 - **Version:** V3.1
-- **Validation:** Spearman ρ = 0.83 against external migration-cost data (n = 36)
-- **Inter-rater:** ICC(3,k) = 0.84
+- **Validation:** Preliminary. Spearman ρ = 0.79 against annual retention rates (n = 14, p < 0.001). Details: [blackholeindex.com/validation](https://blackholeindex.com/validation)
+- **Inter-rater:** Pending. All scores to date are from a single evaluator; an independent multi-rater ICC study (target ICC > 0.75) is planned for Q4 2026
 
 ## Zone Classification
 
 | Zone | B Range | Interpretation |
 |------|---------|---------------|
-| Useful Tool | 0 – 0.5 | Substitutable in days; no structural friction |
-| Growing Gravity | 0.5 – 1.0 | Friction is real but reversible at modest cost |
-| Transition | 1.0 – 1.5 | Migration is a project, not a decision |
-| Event Horizon | 1.5 – 2.5 | Leaving requires re-platforming |
-| Black Hole | ≥ 2.5 | Exit cost approaches the value of the dependent activity |
+| Useful Tool | 0 – 0.4 | System is genuinely optional; users can leave with minimal cost |
+| Growing Gravity | 0.4 – 0.7 | Dependency forming; switching feasible but increasingly inconvenient |
+| Transition Zone | 0.7 – 1.3 | Gray zone; outcome depends on trajectory |
+| Event Horizon | 1.3 – 2.5 | Leaving is expensive and gets more expensive over time |
+| Black Hole | ≥ 2.5 | Structural lock-in; leaving requires organizational restructuring |
 
 ## Repository Structure
 
@@ -61,7 +61,7 @@ blackholeindex/
 All tools are available at [blackholeindex.com](https://blackholeindex.com):
 
 - **[Calculator](https://blackholeindex.com/observatory)** — Score any platform against the 11-parameter rubric
-- **[Rankings](https://blackholeindex.com/rankings)** — All 112 platforms ranked by sector
+- **[Rankings](https://blackholeindex.com/rankings)** — All 184 platforms ranked by sector
 - **[Compare](https://blackholeindex.com/compare)** — Overlay up to 4 platforms on the same radar
 - **[Methodology](https://blackholeindex.com/methodology)** — Full specification with KaTeX equations
 - **[Validation](https://blackholeindex.com/validation)** — External-data correlation and residuals
@@ -87,7 +87,7 @@ All tools are available at [blackholeindex.com](https://blackholeindex.com):
 ## Regulatory Engagement
 
 - **UK CMA** — Digital Markets Unit acknowledged BHI-based submission on Apple/Google mobile platform investigation (April 2026)
-- **SSRN** — Working paper submitted (Abstract ID: 6555158)
+- **SSRN** — Paper posted (Abstract ID: 6555158)
 
 ## Author
 
