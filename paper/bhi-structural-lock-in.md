@@ -30,7 +30,7 @@ Despite this rich theoretical foundation, no standardized measurement instrument
 
 2. **Network effect proxies.** Empirical work uses user counts, Herfindahl-Hirschman Index (HHI), or platform revenue share as proxies. These capture market concentration but not structural dependency — a platform with 90% market share may still face low lock-in if switching costs are negligible.
 
-3. **Qualitative assessment.** Industry analysts, regulators, and journalists use terms like "walled garden," "ecosystem lock-in," and "vendor dependency" without formal operationalization. The European Digital Markets Act (DMA) designates gatekeepers based on thresholds (45M monthly active users, €7.5B market cap) that measure scale, not structural lock-in.
+3. **Qualitative assessment.** Industry analysts, regulators, and journalists use terms like "walled garden," "ecosystem lock-in," and "vendor dependency" without formal operationalization. The European Digital Markets Act (DMA) designates gatekeepers based on thresholds (45M monthly active users, €7.5B EU turnover or €75B market capitalisation) that measure scale, not structural lock-in.
 
 BHI addresses this gap by proposing a formalized, parametric instrument that: (a) decomposes lock-in into 11 observable dimensions with anchored scoring rubrics; (b) aggregates these dimensions using theoretically motivated functional forms from production economics; (c) produces a single dimensionless score comparable across platforms, sectors, and time periods; and (d) includes a dynamic extension modeling the co-evolution of lock-in and human capability decay.
 

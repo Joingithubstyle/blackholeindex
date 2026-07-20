@@ -1,0 +1,19 @@
+id,label,color
+ai,"AI Platforms",#f59e0b
+crypto-assets,"Crypto Assets",#f97316
+crypto-infra,"Crypto Infrastructure",#d946ef
+social,"Social Media",#ec4899
+tech,"Big Tech & Semiconductors",#3b82f6
+saas,"SaaS & Cloud",#06b6d4
+banks,"Banks & Financial Markets",#64748b
+fintech,"Fintech & Payments",#10b981
+gaming,"Gaming & Entertainment",#8b5cf6
+ecommerce,"E-Commerce",#f43f5e
+pharma,"Pharma & Biotech",#14b8a6
+infra,"Critical Infrastructure",#78716c
+telecom,"Telecom & Connectivity",#0ea5e9
+cybersecurity,"Cybersecurity & Identity",#dc2626
+automotive,"Automotive & Mobility",#84cc16
+education-research,"Education, Research & Professional Information",#a855f7
+healthcare-it,"Healthcare Information Systems",#f43f5e
+industrial-software,"Industrial Software",#eab308
