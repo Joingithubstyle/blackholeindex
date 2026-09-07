@@ -51,8 +51,21 @@ All parameters scored 0–10 with anchored rubrics.
 
 | Zone | B Range | Interpretation |
 |------|---------|---------------|
-| Useful Tool | 0 – 0.5 | Substitutable in days |
-| Growing Gravity | 0.5 – 1.0 | Reversible at modest cost |
-| Transition | 1.0 – 1.5 | Migration is a project |
-| Event Horizon | 1.5 – 2.5 | Requires re-platforming |
-| Black Hole | ≥ 2.5 | Exit cost ≈ value of activity |
+| Useful Tool | B < 0.4 | System is genuinely optional; users can leave with minimal cost |
+| Growing Gravity | 0.4 ≤ B < 0.7 | Dependency forming; switching feasible but increasingly inconvenient |
+| Transition Zone | 0.7 ≤ B < 1.3 | Gray zone (cf. Altman Z-score methodology); outcome depends on trajectory |
+| Event Horizon | 1.3 ≤ B < 2.5 | Leaving is expensive and gets more expensive over time |
+| Black Hole | B ≥ 2.5 | Structural lock-in; leaving requires organisational restructuring |
+
+**Corrected 7 September 2026.** This table previously read 0.5 / 1.0 / 1.5 / 2.5. Those boundaries
+were never the ones the model used: `model/model.ts` in this repository has always applied
+0.4 / 0.7 / 1.3 / 2.5, and so does the research paper published in March 2026, a month before this
+file. The replication package therefore shipped a specification that contradicted its own code from
+the day it was published, and stood that way for four months. The values above now match the code,
+the paper and the production site.
+
+**Status of these boundaries.** Only B = 1 has a derivation — it is the point where capture equals
+escape. The others are interpretive and have no empirical derivation: they have not been shown to
+correspond to any observed behavioural transition, and roughly 9% of platforms cross a zone
+boundary under ±1 scoring noise (see the robustness note). Treat the zone label as a presentational
+band, not as a measured category.
