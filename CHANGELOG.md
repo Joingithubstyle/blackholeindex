@@ -1,3 +1,15 @@
+## Correction — 2026-09-07
+
+**Zone thresholds in `methodology/METHODOLOGY.md` were wrong from first publication.** The file,
+committed 2026-04-30 and never edited since, gave 0.5 / 1.0 / 1.5 / 2.5. The model in this same
+repository (`model/model.ts`) has always used 0.4 / 0.7 / 1.3 / 2.5, as does the March 2026 research
+paper and the production site. Anyone who took the specification rather than the code as canonical
+had a different instrument. Corrected, and the empirical status of the boundaries is now stated in
+the file: only B = 1 is derived; the rest are interpretive and unvalidated.
+
+The July 2026 pass that replaced the placeholder validation figures updated `README.md` and the
+data exports but did not touch the methodology document. That is why this survived.
+
 # Changelog
 
 ## Q3 2026 (Current)
