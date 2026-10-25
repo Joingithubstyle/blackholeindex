@@ -1,0 +1,105 @@
+name: API monitor (external)
+
+# Independent liveness check of the Black Hole Index data API, run from GitHub's infrastructure
+# (outside the production VPS). Added 2026-10-25 after INCIDENT-2026-10-25-PG16-DOWN: the on-host
+# healthcheck saw the outage but could not deliver its alert. This workflow needs no secrets:
+# the endpoints are public, and alerts are GitHub Issues (which notify the repository owner).
+#
+# Pause during planned maintenance: set the repository Actions variable MONITOR_PAUSED to "1".
+# Expected quarter / platform count are repository variables so a quarterly release does not
+# require editing this file: EXPECTED_QUARTER (default Q4-2026), EXPECTED_COUNT (default 184).
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      simulate_failure:
+        description: "Create a test alert issue without touching production (true/false)"
+        required: false
+        default: "false"
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: api-monitor
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      EXPECTED_QUARTER: ${{ vars.EXPECTED_QUARTER || 'Q4-2026' }}
+      EXPECTED_COUNT: ${{ vars.EXPECTED_COUNT || '184' }}
+      MONITOR_PAUSED: ${{ vars.MONITOR_PAUSED || '0' }}
+      SIMULATE: ${{ github.event.inputs.simulate_failure || 'false' }}
+      ISSUE_TITLE: "ALERT: blackholeindex.com /api/bhi is failing (external monitor)"
+    steps:
+      - name: Probe /api/bhi and /api/diff (3 attempts, 40 s apart)
+        id: probe
+        shell: bash
+        run: |
+          set -u
+          if [ "$MONITOR_PAUSED" = "1" ]; then echo "paused=1" >> "$GITHUB_OUTPUT"; echo "monitor paused by MONITOR_PAUSED=1"; exit 0; fi
+          echo "paused=0" >> "$GITHUB_OUTPUT"
+          if [ "$SIMULATE" = "true" ]; then echo "status=fail" >> "$GITHUB_OUTPUT"; echo "detail=simulated failure (workflow_dispatch test), production not probed" >> "$GITHUB_OUTPUT"; exit 0; fi
+          ok=0; detail=""
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o /tmp/bhi.json -w '%{http_code}' --max-time 25 https://blackholeindex.com/api/bhi || echo 000)
+            dcode=$(curl -sS -o /tmp/diff.json -w '%{http_code}' --max-time 25 https://blackholeindex.com/api/diff || echo 000)
+            check=$(python3 - "$EXPECTED_QUARTER" "$EXPECTED_COUNT" <<'PY' 2>&1 || true
+          import json, sys
+          q, n = sys.argv[1], int(sys.argv[2])
+          d = json.load(open('/tmp/bhi.json', encoding='utf-8'))
+          assert d.get('instrument') == 'Black Hole Index', 'instrument field'
+          assert d.get('quarter') == q, 'quarter %r != %r' % (d.get('quarter'), q)
+          plats = d.get('platforms') or []
+          assert len(plats) == n and d.get('count') == n, 'count %r/%r != %r' % (d.get('count'), len(plats), n)
+          assert all(isinstance(p.get('b_score'), (int, float, str)) for p in plats[:5]), 'b_score missing'
+          dd = json.load(open('/tmp/diff.json', encoding='utf-8'))
+          assert dd.get('available') is True and dd.get('current') == q, 'diff not available/current'
+          print('ok')
+          PY
+          )
+            if [ "$code" = "200" ] && [ "$dcode" = "200" ] && [ "$check" = "ok" ]; then ok=1; break; fi
+            detail="attempt $attempt: /api/bhi HTTP $code, /api/diff HTTP $dcode, check: ${check:0:160}"
+            echo "$detail"; [ "$attempt" -lt 3 ] && sleep 40
+          done
+          if [ "$ok" = 1 ]; then echo "status=ok" >> "$GITHUB_OUTPUT"; else echo "status=fail" >> "$GITHUB_OUTPUT"; echo "detail=$detail" >> "$GITHUB_OUTPUT"; fi
+      - name: Alert or recover via GitHub Issue
+        if: steps.probe.outputs.paused == '0'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATUS: ${{ steps.probe.outputs.status }}
+          DETAIL: ${{ steps.probe.outputs.detail }}
+        run: |
+          set -u
+          repo="${{ github.repository }}"; now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          open=$(gh issue list -R "$repo" --label api-monitor --state open --json number,createdAt -q '.[0].number' 2>/dev/null || true)
+          gh label create api-monitor -R "$repo" --color B60205 --description "external API monitor alerts" 2>/dev/null || true
+          if [ "$STATUS" = "ok" ]; then
+            if [ -n "$open" ]; then
+              gh issue comment "$open" -R "$repo" --body "RECOVERED at $now UTC: /api/bhi and /api/diff answer 200 with the expected quarter and platform count. Closing."
+              gh issue close "$open" -R "$repo" --reason completed
+              echo "recovery notice posted on issue #$open"
+            else echo "healthy at $now"; fi
+          else
+            if [ -n "$open" ]; then
+              gh issue comment "$open" -R "$repo" --body "still failing at $now UTC — $DETAIL"
+              echo "failure noted on issue #$open"
+            else
+              gh issue create -R "$repo" --label api-monitor --title "$ISSUE_TITLE" --body "External monitor (GitHub Actions) could not validate the data API after 3 attempts.
+
+- when: $now UTC
+- detail: $DETAIL
+- check the VPS first: \`systemctl is-active postgresql-16\` and \`curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3002/api/bhi\` (see paper/infra/INCIDENT-2026-10-25-PG16-DOWN.md)
+
+This issue is closed automatically when the probe succeeds again."
+              echo "alert issue created"
+            fi
+            exit 1
+          fi
