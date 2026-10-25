@@ -1,13 +1,18 @@
 name: API monitor (external)
 
 # Independent liveness check of the Black Hole Index data API, run from GitHub's infrastructure
-# (outside the production VPS). Added 2026-10-25 after INCIDENT-2026-10-25-PG16-DOWN: the on-host
-# healthcheck saw the outage but could not deliver its alert. This workflow needs no secrets:
-# the endpoints are public, and alerts are GitHub Issues (which notify the repository owner).
+# (outside the production VPS). Added 2026-10-25 after INCIDENT-2026-10-25-PG16-DOWN. No secrets:
+# the endpoints are public and alerts are GitHub Issues assigned to the owner (participation
+# notifications), with an @mention in the body.
 #
-# Pause during planned maintenance: set the repository Actions variable MONITOR_PAUSED to "1".
-# Expected quarter / platform count are repository variables so a quarterly release does not
-# require editing this file: EXPECTED_QUARTER (default Q4-2026), EXPECTED_COUNT (default 184).
+# Operating notes
+# - Pause during planned maintenance: repository Actions variable MONITOR_PAUSED = "1".
+# - Quarterly release: update repository variables EXPECTED_QUARTER / EXPECTED_COUNT.
+# - Recovery needs TWO consecutive healthy runs (label "recovering" marks the first) before the
+#   alert issue is closed, so a flapping API does not close an unconfirmed incident.
+# - Scheduled workflows in public repositories are disabled by GitHub after 60 days without
+#   repository activity; the weekly heartbeat commit below keeps the repository active.
+# - GitHub's cron is best effort: measured intervals are written to the run log ("interval_min").
 
 on:
   schedule:
@@ -15,13 +20,13 @@ on:
   workflow_dispatch:
     inputs:
       simulate_failure:
-        description: "Create a test alert issue without touching production (true/false)"
+        description: "Create/update a test alert issue without probing production (true/false)"
         required: false
         default: "false"
 
 permissions:
   issues: write
-  contents: read
+  contents: write
 
 concurrency:
   group: api-monitor
@@ -36,8 +41,21 @@ jobs:
       EXPECTED_COUNT: ${{ vars.EXPECTED_COUNT || '184' }}
       MONITOR_PAUSED: ${{ vars.MONITOR_PAUSED || '0' }}
       SIMULATE: ${{ github.event.inputs.simulate_failure || 'false' }}
+      ASSIGNEE: ${{ vars.ALERT_ASSIGNEE || github.repository_owner }}
       ISSUE_TITLE: "ALERT: blackholeindex.com /api/bhi is failing (external monitor)"
+      GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Measure interval since the previous completed run
+        shell: bash
+        run: |
+          set -u
+          prev=$(gh run list -R "${{ github.repository }}" --workflow "api-monitor.yml" --status completed --limit 1 --json createdAt -q '.[0].createdAt' 2>/dev/null || true)
+          if [ -n "$prev" ]; then
+            d=$(( ( $(date -u +%s) - $(date -u -d "$prev" +%s) ) / 60 ))
+            echo "interval_min=$d (previous completed run: $prev, event now: ${{ github.event_name }})"
+          else
+            echo "interval_min=n/a"
+          fi
       - name: Probe /api/bhi and /api/diff (3 attempts, 40 s apart)
         id: probe
         shell: bash
@@ -46,11 +64,7 @@ jobs:
           if [ "$MONITOR_PAUSED" = "1" ]; then echo "paused=1" >> "$GITHUB_OUTPUT"; echo "monitor paused by MONITOR_PAUSED=1"; exit 0; fi
           echo "paused=0" >> "$GITHUB_OUTPUT"
           if [ "$SIMULATE" = "true" ]; then echo "status=fail" >> "$GITHUB_OUTPUT"; echo "detail=simulated failure (workflow_dispatch test), production not probed" >> "$GITHUB_OUTPUT"; exit 0; fi
-          ok=0; detail=""
-          for attempt in 1 2 3; do
-            code=$(curl -sS -o /tmp/bhi.json -w '%{http_code}' --max-time 25 https://blackholeindex.com/api/bhi || echo 000)
-            dcode=$(curl -sS -o /tmp/diff.json -w '%{http_code}' --max-time 25 https://blackholeindex.com/api/diff || echo 000)
-            check=$(python3 - "$EXPECTED_QUARTER" "$EXPECTED_COUNT" <<'PY' 2>&1 || true
+          cat > /tmp/check.py <<'PY'
           import json, sys
           q, n = sys.argv[1], int(sys.argv[2])
           d = json.load(open('/tmp/bhi.json', encoding='utf-8'))
@@ -58,43 +72,69 @@ jobs:
           assert d.get('quarter') == q, 'quarter %r != %r' % (d.get('quarter'), q)
           plats = d.get('platforms') or []
           assert len(plats) == n and d.get('count') == n, 'count %r/%r != %r' % (d.get('count'), len(plats), n)
-          assert all(isinstance(p.get('b_score'), (int, float, str)) for p in plats[:5]), 'b_score missing'
+          assert all(p.get('name') and p.get('b_score') is not None for p in plats[:10]), 'name/b_score missing'
           dd = json.load(open('/tmp/diff.json', encoding='utf-8'))
           assert dd.get('available') is True and dd.get('current') == q, 'diff not available/current'
           print('ok')
           PY
-          )
-            if [ "$code" = "200" ] && [ "$dcode" = "200" ] && [ "$check" = "ok" ]; then ok=1; break; fi
+          ok=0; detail=""
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o /tmp/bhi.json -w '%{http_code}' --max-time 25 https://blackholeindex.com/api/bhi 2>/dev/null || echo 000)
+            dcode=$(curl -sS -o /tmp/diff.json -w '%{http_code}' --max-time 25 https://blackholeindex.com/api/diff 2>/dev/null || echo 000)
+            check=$(python3 /tmp/check.py "$EXPECTED_QUARTER" "$EXPECTED_COUNT" 2>&1 | tail -1 || true)
+            if [ "$code" = "200" ] && [ "$dcode" = "200" ] && [ "$check" = "ok" ]; then ok=1; echo "attempt $attempt: healthy"; break; fi
             detail="attempt $attempt: /api/bhi HTTP $code, /api/diff HTTP $dcode, check: ${check:0:160}"
             echo "$detail"; [ "$attempt" -lt 3 ] && sleep 40
           done
           if [ "$ok" = 1 ]; then echo "status=ok" >> "$GITHUB_OUTPUT"; else echo "status=fail" >> "$GITHUB_OUTPUT"; echo "detail=$detail" >> "$GITHUB_OUTPUT"; fi
-      - name: Alert or recover via GitHub Issue
+      - name: Alert / recover via assigned GitHub Issue
         if: steps.probe.outputs.paused == '0'
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
           STATUS: ${{ steps.probe.outputs.status }}
           DETAIL: ${{ steps.probe.outputs.detail }}
         run: |
-          set -u
+          set -uo pipefail
           repo="${{ github.repository }}"; now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          open=$(gh issue list -R "$repo" --label api-monitor --state open --json number,createdAt -q '.[0].number' 2>/dev/null || true)
-          gh label create api-monitor -R "$repo" --color B60205 --description "external API monitor alerts" 2>/dev/null || true
+          gh label create api-monitor -R "$repo" --color B60205 --description "external API monitor alerts" >/dev/null 2>&1 || true
+          gh label create recovering -R "$repo" --color FBCA04 --description "first healthy run after an alert; closes on the second" >/dev/null 2>&1 || true
+          # Listing MUST succeed; otherwise we could create a duplicate incident. Fail loudly instead.
+          if ! open=$(gh issue list -R "$repo" --label api-monitor --state open --json number,labels --jq '.[0]'); then echo "::error::cannot list issues; refusing to act"; exit 1; fi
+          num=$(printf '%s' "$open" | python3 -c 'import json,sys; s=sys.stdin.read().strip(); print(json.loads(s)["number"] if s else "")')
+          recovering=$(printf '%s' "$open" | python3 -c 'import json,sys; s=sys.stdin.read().strip(); print("1" if s and any(l["name"]=="recovering" for l in json.loads(s)["labels"]) else "0")')
           if [ "$STATUS" = "ok" ]; then
-            if [ -n "$open" ]; then
-              gh issue comment "$open" -R "$repo" --body "RECOVERED at $now UTC: /api/bhi and /api/diff answer 200 with the expected quarter and platform count. Closing."
-              gh issue close "$open" -R "$repo" --reason completed
-              echo "recovery notice posted on issue #$open"
-            else echo "healthy at $now"; fi
-          else
-            if [ -n "$open" ]; then
-              gh issue comment "$open" -R "$repo" --body "still failing at $now UTC — $DETAIL"
-              echo "failure noted on issue #$open"
+            if [ -z "$num" ]; then echo "healthy at $now (no open incident)"; exit 0; fi
+            if [ "$recovering" = "1" ]; then
+              gh issue comment "$num" -R "$repo" --body "RECOVERED (second consecutive healthy run) at $now UTC: /api/bhi and /api/diff answer 200 with the expected quarter and platform count. Closing."
+              gh issue close "$num" -R "$repo" --reason completed
+              echo "incident #$num closed after two healthy runs"
             else
-              body=$(printf 'External monitor (GitHub Actions) could not validate the data API after 3 attempts.\n\n- when: %s UTC\n- detail: %s\n- check the VPS first: systemctl is-active postgresql-16 ; curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:3002/api/bhi (see paper/infra/INCIDENT-2026-10-25-PG16-DOWN.md)\n\nThis issue is closed automatically when the probe succeeds again.' "$now" "$DETAIL")
-              gh issue create -R "$repo" --label api-monitor --title "$ISSUE_TITLE" --body "$body"
-              echo "alert issue created"
+              gh issue edit "$num" -R "$repo" --add-label recovering
+              gh issue comment "$num" -R "$repo" --body "First healthy run after the alert at $now UTC. Will close if the next run is healthy too."
+              echo "incident #$num marked recovering"
             fi
-            exit 1
+            exit 0
           fi
+          # failure path
+          if [ -n "$num" ]; then
+            [ "$recovering" = "1" ] && gh issue edit "$num" -R "$repo" --remove-label recovering
+            gh issue comment "$num" -R "$repo" --body "still failing at $now UTC — $DETAIL"
+            echo "failure noted on incident #$num"
+          else
+            body=$(printf '@%s — external monitor (GitHub Actions) could not validate the data API after 3 attempts.\n\n- when: %s UTC\n- detail: %s\n- first checks on the VPS: systemctl is-active postgresql-16 ; curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:3002/api/bhi (see paper/infra/INCIDENT-2026-10-25-PG16-DOWN.md)\n\nThis issue is closed automatically after two consecutive healthy runs.' "$ASSIGNEE" "$now" "$DETAIL")
+            gh issue create -R "$repo" --label api-monitor --assignee "$ASSIGNEE" --title "$ISSUE_TITLE" --body "$body"
+            echo "alert issue created and assigned to $ASSIGNEE"
+          fi
+          exit 1
+      - name: Weekly keep-alive commit (prevents GitHub from disabling the schedule after 60 idle days)
+        if: github.event_name == 'schedule' && steps.probe.outputs.paused == '0'
+        shell: bash
+        run: |
+          set -u
+          # only once per week: Sundays between 03:00 and 03:09 UTC
+          if [ "$(date -u +%u)" != "7" ] || [ "$(date -u +%H%M)" -gt 0309 ] || [ "$(date -u +%H%M)" -lt 0300 ]; then echo "not the weekly slot"; exit 0; fi
+          repo="${{ github.repository }}"; path=".github/monitor-heartbeat.txt"
+          sha=$(gh api "repos/$repo/contents/$path" --jq .sha 2>/dev/null || true)
+          content=$(printf 'external API monitor alive: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" | base64 -w0)
+          if [ -n "$sha" ]; then gh api -X PUT "repos/$repo/contents/$path" -f message="chore(monitor): weekly heartbeat" -f content="$content" -f sha="$sha" >/dev/null; else gh api -X PUT "repos/$repo/contents/$path" -f message="chore(monitor): weekly heartbeat" -f content="$content" >/dev/null; fi
+          echo "heartbeat committed"
