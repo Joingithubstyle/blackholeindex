@@ -11,7 +11,10 @@ name: API monitor (external)
 # - Recovery needs TWO consecutive healthy runs (label "recovering" marks the first) before the
 #   alert issue is closed, so a flapping API does not close an unconfirmed incident.
 # - Scheduled workflows in public repositories are disabled by GitHub after 60 days without
-#   repository activity; the weekly heartbeat commit below keeps the repository active.
+#   repository activity; keep-alive.yml (separate, contents:write) commits a weekly heartbeat, and
+#   the VPS dead-man (bhi-deadman.py) mails the owner if scheduled runs stop or the workflow is disabled.
+# - v3 (2026-10-25): least privilege — this workflow holds issues:write (+ actions:read for the interval
+#   measurement) only; the heartbeat commit moved to keep-alive.yml. No secrets are used anywhere.
 # - GitHub's cron is best effort: measured intervals are written to the run log ("interval_min").
 
 on:
@@ -26,7 +29,7 @@ on:
 
 permissions:
   issues: write
-  contents: write
+  actions: read
 
 concurrency:
   group: api-monitor
@@ -126,15 +129,3 @@ jobs:
             echo "alert issue created and assigned to $ASSIGNEE"
           fi
           exit 1
-      - name: Weekly keep-alive commit (prevents GitHub from disabling the schedule after 60 idle days)
-        if: github.event_name == 'schedule' && steps.probe.outputs.paused == '0'
-        shell: bash
-        run: |
-          set -u
-          # only once per week: Sundays between 03:00 and 03:09 UTC
-          if [ "$(date -u +%u)" != "7" ] || [ "$(date -u +%H%M)" -gt 0309 ] || [ "$(date -u +%H%M)" -lt 0300 ]; then echo "not the weekly slot"; exit 0; fi
-          repo="${{ github.repository }}"; path=".github/monitor-heartbeat.txt"
-          sha=$(gh api "repos/$repo/contents/$path" --jq .sha 2>/dev/null || true)
-          content=$(printf 'external API monitor alive: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" | base64 -w0)
-          if [ -n "$sha" ]; then gh api -X PUT "repos/$repo/contents/$path" -f message="chore(monitor): weekly heartbeat" -f content="$content" -f sha="$sha" >/dev/null; else gh api -X PUT "repos/$repo/contents/$path" -f message="chore(monitor): weekly heartbeat" -f content="$content" >/dev/null; fi
-          echo "heartbeat committed"
