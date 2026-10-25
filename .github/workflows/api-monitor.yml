@@ -92,13 +92,8 @@ jobs:
               gh issue comment "$open" -R "$repo" --body "still failing at $now UTC — $DETAIL"
               echo "failure noted on issue #$open"
             else
-              gh issue create -R "$repo" --label api-monitor --title "$ISSUE_TITLE" --body "External monitor (GitHub Actions) could not validate the data API after 3 attempts.
-
-- when: $now UTC
-- detail: $DETAIL
-- check the VPS first: \`systemctl is-active postgresql-16\` and \`curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3002/api/bhi\` (see paper/infra/INCIDENT-2026-10-25-PG16-DOWN.md)
-
-This issue is closed automatically when the probe succeeds again."
+              body=$(printf 'External monitor (GitHub Actions) could not validate the data API after 3 attempts.\n\n- when: %s UTC\n- detail: %s\n- check the VPS first: systemctl is-active postgresql-16 ; curl -s -o /dev/null -w "%%{http_code}" http://127.0.0.1:3002/api/bhi (see paper/infra/INCIDENT-2026-10-25-PG16-DOWN.md)\n\nThis issue is closed automatically when the probe succeeds again.' "$now" "$DETAIL")
+              gh issue create -R "$repo" --label api-monitor --title "$ISSUE_TITLE" --body "$body"
               echo "alert issue created"
             fi
             exit 1
